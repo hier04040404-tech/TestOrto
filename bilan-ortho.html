@@ -112,7 +112,7 @@
 <body>
 <header>
   <div class="wrap" style="padding:0">
-    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v4</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
+    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v6</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
     <h1>Bilan orthophonique — EVALEO 6-15</h1>
   </div>
 </header>
@@ -218,10 +218,21 @@
     <div class="out" id="obs_out" style="display:none"></div>
   </div>
 
+  <!-- MON STYLE -->
+  <div class="card">
+    <h2><span class="tick"></span>Mon style (personnalisation)</h2>
+    <p class="hint" style="margin-bottom:8px">Colle ici un ou deux de tes commentaires d'épreuve ou conclusions habituels (anonymisés). L'IA s'en servira comme modèle pour coller à ta façon d'écrire. Plus tu en mets, plus le rendu te ressemble.</p>
+    <textarea id="stylePerso" placeholder="ex : « En dénomination, le stock lexical actif est insuffisamment développé. L'ébauche phonologique est peu facilitatrice... »" style="min-height:120px"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm" onclick="saveStyle()">Enregistrer mon style</button>
+      <span id="styleState" class="hint" style="align-self:center"></span>
+    </div>
+  </div>
+
   <!-- EPREUVES -->
   <div class="card">
     <h2><span class="tick"></span>Épreuves EVALEO 6-15</h2>
-    <p class="hint" style="margin-bottom:10px">Coche les épreuves passées. Pour chacune : renseigne les scores, la classe, puis dicte tes observations et génère le commentaire.</p>
+    <p class="hint" style="margin-bottom:10px">Coche les épreuves passées. Pour chacune : renseigne les scores et la classe puis génère le commentaire, ou touche « 📷 Tableau » pour photographier le tableau EVALEO et le laisser lire les scores. Dans ce cas, ne photographie que le tableau, jamais l'en-tête nominatif.</p>
     <div id="epreuves"></div>
   </div>
 
@@ -280,7 +291,7 @@ const EPREUVES = [
   {dom:"Langage oral — Récit & pragmatique", nm:"Pragmatique", desc:"Teste les capacités pragmatiques en compréhension et en expression : reconnaissance des émotions, théorie de l'esprit, intention selon l'intonation."},
   // LANGAGE ÉCRIT
   {dom:"Langage écrit — Lecture / identification", nm:"Conversion grapho-phonémique", desc:"Teste la conversion grapho-phonémique (correspondance graphie – son)."},
-  {dom:"Langage écrit — Lecture / identification", nm:"La Mouette – Lecture de texte signifiant", desc:"Teste la vitesse et la précision de l'identification des mots à travers un texte signifiant."},
+  {dom:"Langage écrit — Lecture / identification", nm:"Lecture de texte signifiant", desc:"Teste la vitesse et la précision de l'identification des mots à travers un texte signifiant.", variant:"Texte utilisé (ex : La Mouette, Le Géant…)"},
   {dom:"Langage écrit — Lecture / identification", nm:"Lecture de mots", desc:"Teste la lecture de mots consistants et inconsistants en faisant varier leur longueur et leur fréquence."},
   {dom:"Langage écrit — Lecture / identification", nm:"Lecture de pseudomots", desc:"Teste la lecture de pseudomots présentant des ressemblances avec des mots."},
   {dom:"Langage écrit — Lecture / compréhension", nm:"Compréhension écrite de phrases", desc:"Teste la compréhension morphosyntaxique écrite."},
@@ -328,8 +339,22 @@ RÈGLES ABSOLUES :
 - N'invente JAMAIS de scores, de résultats ou d'observations non fournis. Tu reformules uniquement ce qui est donné.
 - N'utilise JAMAIS de prénom ni de nom. Désigne le patient par l'initiale fournie, ou par "le patient" / "l'enfant", avec le bon genre.
 - Pas de titre, pas de préambule, pas de "Voici". Rends directement le texte rédigé.
-- Reste concis : 2 à 5 phrases pour un commentaire d'épreuve.`;
+- Reste concis : 2 à 5 phrases pour un commentaire d'épreuve.
+
+EXEMPLES DE SON STYLE (calque le ton, le rythme et le vocabulaire de ces extraits réels — ne recopie pas leur contenu, inspire-toi de la forme) :
+• Observation (toujours brève, 1 à 2 phrases) : « Au cours de ce bilan, [le patient] est apparu(e) comme un(e) jeune [garçon/fille] de bon contact, coopérant(e), volontaire. Attention et canalisation fragiles en fin de séance. »
+• Commentaire d'épreuve : « Le score en productions phonologiques des mots non existants est déficitaire par rapport aux enfants de son âge, alors que les productions des mots connus sont de qualité. [le patient] prend appui sur des mots proches phonologiquement existants ; les mots longs et complexes sont moins bien réussis. **Les productions phonologiques complexes s'avèrent plus difficiles.** »
+• Conclusion : « Au bilan de ce jour, un trouble du langage écrit (TLE selon la terminologie du DSM-5), secondaire à un TDAH et à des difficultés langagières, est objectivé. Des progrès ont toutefois été observés. »
+• Projet : « Une rééducation orthophonique est proposée (30 AMO 12.1), à raison d'une séance hebdomadaire. Objectifs à court terme : » suivi de tirets.${userStyle()?('\n\nEXEMPLES PERSONNELS FOURNIS PAR LA CLINICIENNE — PRIORITÉ ABSOLUE, calque ces formulations avant tout :\n'+userStyle()):''}`;
 }
+function userStyle(){ return (lsGet('stylePerso')||'').trim(); }
+function saveStyle(){
+  const v=document.getElementById('stylePerso').value.trim();
+  const ok=lsSet('stylePerso',v);
+  const s=document.getElementById('styleState');
+  if(s){ s.textContent= ok?'Style enregistré ✓':'Stockage bloqué'; s.style.color= ok?'var(--sauge)':'#c0392b'; }
+}
+function loadStyle(){ const v=lsGet('stylePerso'); if(v){ const el=document.getElementById('stylePerso'); if(el) el.value=v; } }
 
 function patientCtx(){
   const g = document.querySelector('#genre button.on').dataset.g;
@@ -348,7 +373,7 @@ async function callGroq(userContent, sys){
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
       body:JSON.stringify({
         model:"llama-3.3-70b-versatile",
-        temperature:0.4,
+        temperature:0.3,
         messages:[
           {role:"system",content: sys||systemPrompt()},
           {role:"user",content:userContent}
@@ -362,8 +387,69 @@ async function callGroq(userContent, sys){
 }
 
 async function withLoading(btn, fn){
-  const old = btn.textContent; btn.disabled=true; btn.textContent="… rédaction";
+  const old = btn.textContent; btn.disabled=true; btn.textContent="…";
   try{ await fn(); } finally { btn.disabled=false; btn.textContent=old; }
+}
+
+/* ===================== VISION (photo du tableau EVALEO) ===================== */
+function fileToResizedDataURL(file, maxDim, quality){
+  maxDim=maxDim||1600; quality=quality||0.85;
+  return new Promise((resolve,reject)=>{
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const scale=Math.min(1, maxDim/Math.max(img.width,img.height));
+      const w=Math.round(img.width*scale), h=Math.round(img.height*scale);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      try{ resolve(cv.toDataURL('image/jpeg',quality)); }catch(e){ reject(e); }
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('image illisible')); };
+    img.src=url;
+  });
+}
+async function callGroqVision(dataUrl, userText){
+  const key=(lsGet('groqKey')||'').trim();
+  if(!key){ alert("Renseigne d'abord ta clé API Groq."); return null; }
+  try{
+    const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+      body:JSON.stringify({
+        model:"meta-llama/llama-4-scout-17b-16e-instruct",
+        temperature:0.3,
+        messages:[
+          {role:"system",content:systemPrompt()},
+          {role:"user",content:[
+            {type:"text",text:userText},
+            {type:"image_url",image_url:{url:dataUrl}}
+          ]}
+        ]
+      })
+    });
+    if(!r.ok){ const t=await r.text(); alert("Erreur lecture image ("+r.status+"). Le modèle vision a peut-être changé côté Groq — préviens pour qu'on le mette à jour.\n"+t.slice(0,160)); return null; }
+    const data=await r.json();
+    return (data.choices?.[0]?.message?.content||"").trim();
+  }catch(e){ alert("Connexion impossible : "+e.message); return null; }
+}
+async function genEpreuvePhoto(idx, input){
+  const file=input.files&&input.files[0]; input.value='';
+  if(!file) return;
+  if(!confirm("⚠️ Confidentialité : vérifie que la photo ne montre QUE le tableau de scores, sans le nom ni la date de naissance du patient (recadre avant si besoin). Continuer ?")) return;
+  const btn=document.getElementById('phbtn_'+idx);
+  await withLoading(btn, async()=>{
+    let dataUrl; try{ dataUrl=await fileToResizedDataURL(file); }catch(e){ alert("Image illisible."); return; }
+    const vrEl=document.getElementById('vr_'+idx); const variant=vrEl?vrEl.value.trim():'';
+    const notes=document.getElementById('nt_'+idx).value.trim();
+    const txt=await callGroqVision(dataUrl,
+      `${patientCtx()}\n\nVoici la photo d'un tableau de scores EVALEO 6-15 pour l'épreuve : ${EPREUVES[idx].nm} (${EPREUVES[idx].desc})${variant?(' — texte : '+variant):''}.\nLis attentivement les scores et la classe (étalonnage 1 à 7) figurant dans le tableau.${notes?('\nObservations complémentaires du clinicien : '+notes):''}\n\nÉcris d'abord une ligne « Scores : ... » reprenant les valeurs lues dans l'image, puis à la ligne suivante le commentaire qualitatif rédigé dans le style décrit. N'invente aucun chiffre qui ne figure pas dans le tableau.`);
+    if(txt){
+      window.epData[idx].commentaire=txt;
+      showOut('out_'+idx, txt);
+      const m=txt.match(/Scores?\s*:\s*(.+)/i);
+      if(m && !document.getElementById('sc_'+idx).value.trim()){ setVal('sc_'+idx, m[1].trim().replace(/\*/g,'')); autosave(); }
+    }
+  });
 }
 
 /* ===================== GÉNÉRATIONS ===================== */
@@ -381,7 +467,7 @@ async function genObs(btn){
   if(!raw) return alert("Dicte d'abord tes observations.");
   await withLoading(btn, async()=>{
     const txt = await callGroq(
-      `${patientCtx()}\n\nRédige le paragraphe "Observations au cours du bilan". Commence par la formule habituelle "Au cours de ce bilan, [désignation] est apparu(e) comme...". Notes :\n"""${raw}"""`);
+      `${patientCtx()}\n\nRédige le paragraphe "Observations au cours du bilan". IMPÉRATIF : très court, 1 à 2 phrases maximum (environ 2 lignes), pas de détails superflus. Commence par "Au cours de ce bilan, [désignation] est apparu(e) comme...". Notes :\n"""${raw}"""`);
     if(txt) showOut('obs_out', txt);
   });
 }
@@ -390,10 +476,12 @@ async function genEpreuve(idx,btn){
   const scores = document.getElementById('sc_'+idx).value.trim();
   const classe = c.classe ? ("classe "+c.classe) : "classe non renseignée";
   const notes = document.getElementById('nt_'+idx).value.trim();
+  const vrEl = document.getElementById('vr_'+idx);
+  const variant = vrEl ? vrEl.value.trim() : '';
   if(!scores && !notes) return alert("Renseigne au moins les scores ou des notes pour cette épreuve.");
   await withLoading(btn, async()=>{
     const txt = await callGroq(
-      `${patientCtx()}\n\nÉpreuve : ${EPREUVES[idx].nm} (${EPREUVES[idx].desc})\nRésultat global : ${classe}.\nScores : ${scores||'non détaillés'}\nObservations brutes du clinicien :\n"""${notes||'aucune'}"""\n\nRédige le commentaire qualitatif de cette épreuve, dans le style décrit.`);
+      `${patientCtx()}\n\nÉpreuve : ${EPREUVES[idx].nm} (${EPREUVES[idx].desc})${variant?('\nSupport / texte utilisé : '+variant):''}\nRésultat global : ${classe}.\nScores : ${scores||'non détaillés'}\nObservations brutes du clinicien :\n"""${notes||'aucune'}"""\n\nRédige le commentaire qualitatif de cette épreuve, dans le style décrit.`);
     if(txt){ c.commentaire=txt; showOut('out_'+idx, txt); }
   });
 }
@@ -429,6 +517,7 @@ function buildEpreuves(){
       </div>
       <div class="ep-body">
         <p class="ep-desc">${e.desc}</p>
+        ${e.variant?`<label>${e.variant}</label><input id="vr_${i}" placeholder="${e.variant}">`:''}
         <label>Scores (saisis librement, comme sur ta feuille)</label>
         <input id="sc_${i}" placeholder="ex : 7/20 ; temps 172 sec">
         <label>Classe (étalonnage 7 zones)</label>
@@ -443,6 +532,8 @@ function buildEpreuves(){
         </div>
         <div class="row" style="margin-top:8px">
           <button class="btn sm" onclick="genEpreuve(${i},this)">Rédiger le commentaire</button>
+          <button class="btn ghost sm" id="phbtn_${i}" style="flex:none" onclick="document.getElementById('ph_${i}').click()">📷 Tableau</button>
+          <input type="file" id="ph_${i}" accept="image/*" style="display:none" onchange="genEpreuvePhoto(${i},this)">
         </div>
         <div class="out" id="out_${i}" style="display:none"></div>
       </div>
@@ -500,7 +591,7 @@ function collectDraft(){
     obs_raw:val('obs_raw'),obs_out:txtOut('obs_out'),
     ccl_raw:val('ccl_raw'),ccl_out:txtOut('ccl_out'),
     eps: window.epData.map((e,i)=>({sel:document.getElementById('ep_'+i).classList.contains('sel'),
-        classe:e.classe, sc:val('sc_'+i), nt:val('nt_'+i), com:e.commentaire}))
+        classe:e.classe, sc:val('sc_'+i), nt:val('nt_'+i), vr:val('vr_'+i), com:e.commentaire}))
   };
 }
 let saveTimer=null;
@@ -534,6 +625,7 @@ function loadDraft(){
     if(e.sel) document.getElementById('ep_'+i).classList.add('sel');
     if(e.classe) setClasse(i,e.classe);
     if(e.sc) setVal('sc_'+i,e.sc);
+    if(e.vr) setVal('vr_'+i,e.vr);
     if(e.nt) setVal('nt_'+i,e.nt);
     if(e.com){ window.epData[i].commentaire=e.com; showOut('out_'+i,e.com); }
   });
@@ -676,6 +768,7 @@ function importBackup(file){
 buildEpreuves();
 testStorage();
 loadKey();
+loadStyle();
 loadDraft();
 renderLib();
 wireAutosave();
