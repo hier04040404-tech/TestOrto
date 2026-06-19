@@ -112,7 +112,7 @@
 <body>
 <header>
   <div class="wrap" style="padding:0">
-    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v7</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
+    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v8</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
     <h1>Bilan orthophonique — EVALEO 6-15</h1>
   </div>
 </header>
@@ -229,9 +229,19 @@
     </div>
   </div>
 
+  <!-- ANALYSE RAPIDE FEUILLE EVALEO -->
+  <div class="card">
+    <h2><span class="tick"></span>Analyse rapide — feuille de scores EVALEO</h2>
+    <p class="hint" style="margin-bottom:10px">Photographie la ou les feuilles de scores EVALEO (jusqu'à 5). L'IA lit le tableau, repère les épreuves et rédige une première version du bilan dans ton style — sans rien cocher. <b>⚠️ Ne photographie que les tableaux, jamais l'en-tête avec le nom du patient.</b></p>
+    <button class="btn" id="sheetBtn" onclick="document.getElementById('sheetFile').click()">📷 Importer le tableau EVALEO</button>
+    <input type="file" id="sheetFile" accept="image/*" multiple style="display:none" onchange="analyzeSheet(this)">
+    <label style="margin-top:12px">Bilan rédigé à partir du tableau (modifiable)</label>
+    <textarea id="evaleoAnalyse" placeholder="Le résultat de l'analyse apparaîtra ici, tu pourras le corriger librement…" style="min-height:170px"></textarea>
+  </div>
+
   <!-- EPREUVES -->
   <div class="card">
-    <h2><span class="tick"></span>Épreuves EVALEO 6-15</h2>
+    <h2><span class="tick"></span>Épreuves EVALEO 6-15 <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--encre-doux)">— optionnel, pour affiner épreuve par épreuve</span></h2>
     <p class="hint" style="margin-bottom:10px">Coche les épreuves passées. Pour chacune : renseigne les scores et la classe puis génère le commentaire, ou touche « 📷 Tableau » pour photographier le tableau EVALEO et le laisser lire les scores. Dans ce cas, ne photographie que le tableau, jamais l'en-tête nominatif.</p>
     <div id="epreuves"></div>
   </div>
@@ -408,9 +418,12 @@ function fileToResizedDataURL(file, maxDim, quality){
     img.src=url;
   });
 }
-async function callGroqVision(dataUrl, userText){
+async function callGroqVision(dataUrls, userText){
+  if(typeof dataUrls==='string') dataUrls=[dataUrls];
   const key=(lsGet('groqKey')||'').trim();
   if(!key){ alert("Renseigne d'abord ta clé API Groq."); return null; }
+  const content=[{type:"text",text:userText}];
+  dataUrls.forEach(u=>content.push({type:"image_url",image_url:{url:u}}));
   try{
     const r=await fetch("https://api.groq.com/openai/v1/chat/completions",{
       method:"POST",
@@ -420,10 +433,7 @@ async function callGroqVision(dataUrl, userText){
         temperature:0.3,
         messages:[
           {role:"system",content:systemPrompt()},
-          {role:"user",content:[
-            {type:"text",text:userText},
-            {type:"image_url",image_url:{url:dataUrl}}
-          ]}
+          {role:"user",content:content}
         ]
       })
     });
@@ -431,6 +441,19 @@ async function callGroqVision(dataUrl, userText){
     const data=await r.json();
     return (data.choices?.[0]?.message?.content||"").trim();
   }catch(e){ alert("Connexion impossible : "+e.message); return null; }
+}
+async function analyzeSheet(input){
+  const files=input.files?Array.from(input.files):[]; input.value='';
+  if(!files.length) return;
+  if(files.length>5){ alert("5 photos maximum à la fois."); return; }
+  if(!confirm("⚠️ Confidentialité : vérifie que les photos ne montrent QUE les tableaux de scores, sans le nom ni la date de naissance du patient (recadre avant si besoin). Continuer ?")) return;
+  const btn=document.getElementById('sheetBtn');
+  await withLoading(btn, async()=>{
+    let urls=[]; try{ for(const f of files){ urls.push(await fileToResizedDataURL(f)); } }catch(e){ alert("Image illisible."); return; }
+    const txt=await callGroqVision(urls,
+      `${patientCtx()}\n\nVoici une ou plusieurs photos d'une feuille de scores de la batterie EVALEO 6-15. Analyse l'ensemble du ou des tableaux.\n\nPour CHAQUE épreuve visible : indique son nom, ses scores chiffrés et sa classe (étalonnage 1 à 7), puis rédige un court commentaire qualitatif dans le style décrit. Regroupe les épreuves par domaine avec des intertitres « LANGAGE ORAL » et « LANGAGE ÉCRIT ». N'invente aucune épreuve ni aucun chiffre absent des images. Texte clair, prêt à coller dans un compte-rendu.`);
+    if(txt){ const el=document.getElementById('evaleoAnalyse'); el.value=txt; autosave(); }
+  });
 }
 async function genEpreuvePhoto(idx, input){
   const file=input.files&&input.files[0]; input.value='';
@@ -585,7 +608,7 @@ function loadKey(){
 function collectDraft(){
   return {
     type:val('type'),domaine:val('domaine'),age:val('age'),classe:val('classe'),
-    etalonnage:val('etalonnage'),initiale:val('initiale'),
+    etalonnage:val('etalonnage'),initiale:val('initiale'),evaleoAnalyse:val('evaleoAnalyse'),
     genre:document.querySelector('#genre button.on').dataset.g,
     anamnese_raw:val('anamnese_raw'),anamnese_out:txtOut('anamnese_out'),
     obs_raw:val('obs_raw'),obs_out:txtOut('obs_out'),
@@ -616,7 +639,7 @@ function resetAll(){
 function loadDraft(){
   const s=lsGet('bilanDraft'); if(!s) return;
   let d; try{ d=JSON.parse(s); }catch(e){ return; }
-  ['type','domaine','age','classe','etalonnage','initiale','anamnese_raw','obs_raw','ccl_raw'].forEach(k=>{if(d[k]!=null)setVal(k,d[k]);});
+  ['type','domaine','age','classe','etalonnage','initiale','evaleoAnalyse','anamnese_raw','obs_raw','ccl_raw'].forEach(k=>{if(d[k]!=null)setVal(k,d[k]);});
   if(d.genre){ document.querySelectorAll('#genre button').forEach(b=>b.classList.toggle('on',b.dataset.g===d.genre)); }
   if(d.anamnese_out) showOut('anamnese_out',d.anamnese_out);
   if(d.obs_out) showOut('obs_out',d.obs_out);
@@ -645,6 +668,7 @@ function assemble(){
   L.push("BILAN — Examen quantitatif et qualitatif\n");
   L.push("Les épreuves sont issues de la batterie EVALEO 6-15 (Launay, Maeder, Roustit, Touzin, 2018). L'analyse repose sur un étalonnage en sept classes (1 = zone pathologique ; 2 = zone à risque ; 3-4-5 = norme ; 6 = supérieure ; 7 = très supérieure).\n");
   if(txtOut('obs_out')){ L.push("Observations au cours du bilan : "+txtOut('obs_out')+"\n"); }
+  if(val('evaleoAnalyse').trim()){ L.push(val('evaleoAnalyse').trim()+"\n"); }
   let lastDom='';
   window.epData.forEach((e,i)=>{
     const sel=document.getElementById('ep_'+i).classList.contains('sel');
