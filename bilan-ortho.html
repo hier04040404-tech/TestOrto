@@ -182,7 +182,7 @@
       <button class="btn mic" style="position:absolute;top:8px;right:8px" data-target="anamnese_raw" onclick="toggleMic(this)">🎙️</button>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn sm" onclick="genAnamnese()">Rédiger l'anamnèse</button>
+      <button class="btn sm" onclick="genAnamnese(this)">Rédiger l'anamnèse</button>
       <button class="btn ghost sm" style="flex:none" onclick="clearOut('anamnese_out')">Effacer</button>
     </div>
     <div class="out" id="anamnese_out" style="display:none"></div>
@@ -197,7 +197,7 @@
       <button class="btn mic" style="position:absolute;top:8px;right:8px" data-target="obs_raw" onclick="toggleMic(this)">🎙️</button>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn sm" onclick="genObs()">Rédiger les observations</button>
+      <button class="btn sm" onclick="genObs(this)">Rédiger les observations</button>
       <button class="btn ghost sm" style="flex:none" onclick="clearOut('obs_out')">Effacer</button>
     </div>
     <div class="out" id="obs_out" style="display:none"></div>
@@ -219,7 +219,7 @@
       <button class="btn mic" style="position:absolute;top:8px;right:8px" data-target="ccl_raw" onclick="toggleMic(this)">🎙️</button>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn sm" onclick="genConclusion()">Rédiger conclusion + projet</button>
+      <button class="btn sm" onclick="genConclusion(this)">Rédiger conclusion + projet</button>
       <button class="btn ghost sm" style="flex:none" onclick="clearOut('ccl_out')">Effacer</button>
     </div>
     <p class="hint">L'IA s'appuie sur les commentaires d'épreuves déjà générés pour la synthèse.</p>
@@ -303,7 +303,7 @@ function patientCtx(){
   const g = document.querySelector('#genre button.on').dataset.g;
   const ini = document.getElementById('initiale').value.trim();
   const sujet = ini || (g==='m'?"l'enfant":"l'enfant");
-  return `Genre : ${g==='m'?'garçon (il)':'fille (elle)'}. Désignation à utiliser : ${ini?('« '+ini+' »'):'« le patient » / « l\\'enfant »'}. Âge : ${document.getElementById('age').value||'non précisé'}. Classe : ${document.getElementById('classe').value||'non précisée'}.`;
+  return `Genre : ${g==='m'?'garçon (il)':'fille (elle)'}. Désignation à utiliser : ${ini?('« '+ini+' »'):"« le patient » / « l'enfant »"}. Âge : ${document.getElementById('age').value||'non précisé'}. Classe : ${document.getElementById('classe').value||'non précisée'}.`;
 }
 
 /* ===================== APPEL GROQ ===================== */
@@ -335,43 +335,43 @@ async function withLoading(btn, fn){
 }
 
 /* ===================== GÉNÉRATIONS ===================== */
-async function genAnamnese(){
+async function genAnamnese(btn){
   const raw=document.getElementById('anamnese_raw').value.trim();
   if(!raw) return alert("Dicte d'abord quelques notes d'anamnèse.");
-  await withLoading(event.target, async()=>{
+  await withLoading(btn, async()=>{
     const txt = await callGroq(
       `${patientCtx()}\n\nRédige la section ANAMNÈSE à partir de ces notes brutes. Organise en phrases fluides (suivis, traitements, scolarité, comportement). Notes :\n"""${raw}"""`);
     if(txt) showOut('anamnese_out', txt);
   });
 }
-async function genObs(){
+async function genObs(btn){
   const raw=document.getElementById('obs_raw').value.trim();
   if(!raw) return alert("Dicte d'abord tes observations.");
-  await withLoading(event.target, async()=>{
+  await withLoading(btn, async()=>{
     const txt = await callGroq(
       `${patientCtx()}\n\nRédige le paragraphe "Observations au cours du bilan". Commence par la formule habituelle "Au cours de ce bilan, [désignation] est apparu(e) comme...". Notes :\n"""${raw}"""`);
     if(txt) showOut('obs_out', txt);
   });
 }
-async function genEpreuve(idx){
+async function genEpreuve(idx,btn){
   const c = window.epData[idx];
   const scores = document.getElementById('sc_'+idx).value.trim();
   const classe = c.classe ? ("classe "+c.classe) : "classe non renseignée";
   const notes = document.getElementById('nt_'+idx).value.trim();
   if(!scores && !notes) return alert("Renseigne au moins les scores ou des notes pour cette épreuve.");
-  await withLoading(event.target, async()=>{
+  await withLoading(btn, async()=>{
     const txt = await callGroq(
       `${patientCtx()}\n\nÉpreuve : ${EPREUVES[idx].nm} (${EPREUVES[idx].desc})\nRésultat global : ${classe}.\nScores : ${scores||'non détaillés'}\nObservations brutes du clinicien :\n"""${notes||'aucune'}"""\n\nRédige le commentaire qualitatif de cette épreuve, dans le style décrit.`);
     if(txt){ c.commentaire=txt; showOut('out_'+idx, txt); }
   });
 }
-async function genConclusion(){
+async function genConclusion(btn){
   const raw=document.getElementById('ccl_raw').value.trim();
   const coms = (window.epData||[]).filter(e=>e.commentaire)
       .map((e,i)=>`- ${EPREUVES[e.idx].nm}${e.classe?(' (classe '+e.classe+')'):''} : ${e.commentaire}`).join("\n");
-  await withLoading(event.target, async()=>{
+  await withLoading(btn, async()=>{
     const txt = await callGroq(
-      `${patientCtx()}\n\nVoici les commentaires d'épreuves déjà rédigés :\n${coms||'(aucun pour l\\'instant)'}\n\nIntentions diagnostiques du clinicien :\n"""${raw||'non précisées'}"""\n\nRédige DEUX sections distinctes, séparées par une ligne vide :\n1) "CONCLUSION — synthèse de bilan et diagnostic orthophonique" : synthétise les fragilités et points forts, pose le diagnostic évoqué par le clinicien (ne l'invente pas si absent).\n2) "PROJET THÉRAPEUTIQUE" : propose une rééducation (reprends la cotation indiquée, ex 30 AMO 12.1, sinon laisse [cotation]), à raison d'une séance hebdomadaire, puis liste 3 à 4 objectifs à court terme sous forme de tirets, déduits des fragilités.`);
+      `${patientCtx()}\n\nVoici les commentaires d'épreuves déjà rédigés :\n${coms||'(aucun pour le moment)'}\n\nIntentions diagnostiques du clinicien :\n"""${raw||'non précisées'}"""\n\nRédige DEUX sections distinctes, séparées par une ligne vide :\n1) "CONCLUSION — synthèse de bilan et diagnostic orthophonique" : synthétise les fragilités et points forts, pose le diagnostic évoqué par le clinicien (ne l'invente pas si absent).\n2) "PROJET THÉRAPEUTIQUE" : propose une rééducation (reprends la cotation indiquée, ex 30 AMO 12.1, sinon laisse [cotation]), à raison d'une séance hebdomadaire, puis liste 3 à 4 objectifs à court terme sous forme de tirets, déduits des fragilités.`);
     if(txt) showOut('ccl_out', txt);
   });
 }
@@ -410,7 +410,7 @@ function buildEpreuves(){
           <button class="btn mic" style="position:absolute;top:8px;right:8px" data-target="nt_${i}" onclick="toggleMic(this)">🎙️</button>
         </div>
         <div class="row" style="margin-top:8px">
-          <button class="btn sm" onclick="genEpreuve(${i})">Rédiger le commentaire</button>
+          <button class="btn sm" onclick="genEpreuve(${i},this)">Rédiger le commentaire</button>
         </div>
         <div class="out" id="out_${i}" style="display:none"></div>
       </div>
