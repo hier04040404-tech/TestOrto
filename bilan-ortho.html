@@ -112,7 +112,7 @@
 <body>
 <header>
   <div class="wrap" style="padding:0">
-    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v6</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
+    <div class="eyebrow">Outil interne · rédaction assistée · <span id="ver">v7</span> · <span id="moteur" style="color:#c0392b">moteur ✗</span></div>
     <h1>Bilan orthophonique — EVALEO 6-15</h1>
   </div>
 </header>
@@ -144,11 +144,11 @@
       <button class="btn sm" onclick="archiveCurrent()">＋ Archiver ce bilan</button>
     </div>
     <div class="row" style="margin-top:8px">
-      <button class="btn ghost sm" onclick="exportBackup()">⤓ Exporter (fichier)</button>
-      <button class="btn ghost sm" onclick="document.getElementById('importFile').click()">⤒ Importer</button>
+      <button class="btn ghost sm" onclick="exportBackup()">⤓ Exporter mes bilans</button>
+      <button class="btn ghost sm" onclick="document.getElementById('importFile').click()">⤒ Restaurer mes bilans</button>
       <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importBackup(this.files[0])">
     </div>
-    <p class="hint">« Archiver » ajoute le bilan en cours à ta liste. « Exporter » enregistre un fichier de sauvegarde dans l'app Fichiers de l'iPhone (à garder en sécurité). La clé API n'est jamais incluse.</p>
+    <p class="hint">Sauvegarde de <b>tes bilans</b> (pas des tableaux EVALEO). « Exporter » enregistre un fichier dans l'app Fichiers de l'iPhone ; « Restaurer » le recharge. Pour faire lire un <b>tableau EVALEO</b>, utilise le bouton « 📷 Tableau » dans chaque épreuve plus bas. La clé API n'est jamais incluse.</p>
   </div>
 
   <!-- INFOS BILAN -->
